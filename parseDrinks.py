@@ -2,6 +2,7 @@ import json
 import re
 from pprint import pprint
 
+measurements=['tsp', 'dash', 'oz', 'ounce']
 drinks = {}
 drink = None
 ingredients = []
@@ -14,8 +15,14 @@ with open('Classics.txt', 'r', encoding='UTF-8') as classics:
             drink = None
             ingredients = []
         elif "Ingredients" not in line:
-            #matches = re.match('(\d+ */* */*\d*)(.*)', line.rstrip('\n'))
-            ingredients.append(line.rstrip('\n'))
+            matches = re.match('(\d+ */* */*\d*/*\d*) ((tsp|dash|dashes|oz|ounce|ounces) )*(.*)', line.rstrip('\n'))
+            if matches:
+                if matches.group(3) in measurements:
+                    ingredients.append({"Quantity": matches.group(1), "Unit":matches.group(3), "Liquor": matches.group(4)})
+                else:
+                    ingredients.append({"Quantity": matches.group(1), "Liqour": matches.group(4)})
+            else:
+                ingredients.append(line.rstrip('\n'))
 
 #Nikki's new favorite
 #Apr 10, 2020
