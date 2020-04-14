@@ -1,49 +1,86 @@
+#!env python
 import json
 import re
 from pprint import pprint
 
-measurements=['tsp', 'dash', 'oz', 'ounce']
-drinks = {}
+
+class Drink:
+    def __init__(self, drink_name):
+        self.instructions = []
+        self.drink_name = drink_name
+
+    def add_to_instructions(self, text):
+        self.instructions.append(text)
+
+    def get_instructions(self):
+        return self.instructions
+
+    def get_drink_name(self):
+        return self.drink_name
+
+
+measurements = ['tsp', 'dash', 'oz', 'ounce']
 drink = None
-ingredients = []
+drinks = {}
 with open('Classics.txt', 'r', encoding='UTF-8') as classics:
     for line in classics:
         if not drink:
-            drink = line.rstrip('\n')
+            drink = Drink(line.rstrip('\n'))
         elif not line.strip():
-            drinks[drink] = ingredients
+            drinks[drink.get_drink_name()] = {"Instructions": drink.get_instructions()}
             drink = None
-            ingredients = []
         elif "Ingredients" not in line:
-            matches = re.match('(\d+ */* */*\d*/*\d*) ((tsp|dash|dashes|oz|ounce|ounces) )*(.*)', line.rstrip('\n'))
+            matches = re.match('(\d+ */* */*\d*/*\d*) ((tsp|dash|oz|ounce)*(es|s)* )*(.*)', line.rstrip('\n'))
             if matches:
-                if matches.group(3) in measurements:
-                    ingredients.append({"Quantity": matches.group(1), "Unit":matches.group(3), "Liquor": matches.group(4)})
-                else:
-                    ingredients.append({"Quantity": matches.group(1), "Liqour": matches.group(4)})
+                drink.add_to_instructions({"Quantity": matches.group(1),
+                                           "Unit": (matches.group(3) or "") + (matches.group(4) or ""),
+                                           "Liquor": matches.group(5)})
             else:
-                ingredients.append(line.rstrip('\n'))
+                drink.add_to_instructions(line.rstrip('\n'))
 
-#Nikki's new favorite
-#Apr 10, 2020
-#
-#Division Bell
-#1 oz Mezcal
-#3/4 oz Aperol
-#3/4 oz Lime Juice
-#1/2 oz Maraschino Liqueur
-#Garnish with Grapefruit twist
-#
-#
-#
-#drink = None
-#ingredients = []
-#with open('GregsDrinks.txt', 'r', encoding='UTF-8') as gregs:
-#    for line in gregs:
-#        if not drink:
-#            drink = line
-            
-#pprint(drinks)
+drink = None
+show = None
+show_date = None
+last_line = None
+with open('GregsDrinks.txt', 'r', encoding='UTF-8') as classics:
+    for line in classics:
+        if last_line == line:
+            if drink:
+                drinks[drink.get_drink_name()] = {"Show": show,
+                                                  "Show Date": show_date,
+                                                  "Instructions": drink.get_instructions()}
+            show = None
+            show_date = None
+            drink = None
+        elif not line.strip():
+            if drink:
+                drinks[drink.get_drink_name()] = {"Show": show,
+                                                  "Show Date": show_date,
+                                                  "Instructions": drink.get_instructions()}
+            drink = None
+            instructions = []
+        elif not show:
+            show = line.rstrip('\n')
+        elif not show_date:
+            show_date = line.rstrip('\n')
+        elif not drink and line.rstrip('\n'):
+            drink = Drink("Greg {}".format(line.rstrip('\n')))
+        else:
+            matches = \
+                re.match("( )*(•|-)*(\.*\d*.*\d+[a-zA-Z]* (([tT]sp|[dD]ash|[oO]z|[oO]unce|[mM][lL]|[pP]art)*(es|s)*(\.)*){1} )(.+)", line.rstrip('\n'))
+            if matches:
+                pprint(matches.groups())
+                quantity_and_unit = (matches.group(3) or "").split("or")[0].replace("-", "").strip()
+                try:
+                    unit = quantity_and_unit.split(' ')[1]
+                except IndexError:
+                    unit = None
+                drink.add_to_instructions({"Quantity": quantity_and_unit.split(' ')[0],
+                                           "Unit": (unit or matches.group(4)).strip(),
+                                           "Liquor": matches.group(8).replace("of", "").strip()})
+            else:
+                drink.add_to_instructions(line.replace("-", "").strip().strip('\n'))
+        last_line = line
 
 with open('Drinks.json', 'w') as drink_out:
     drink_out.write(json.dumps(drinks, indent=4))
